@@ -32,6 +32,10 @@ func getChatHistory(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("getting the chat with id %v", r.PathValue("id"))
 }
 
+func createNewSession(w http.ResponseWriter, r * http.Request){
+	
+}
+
 // func chatWebSocket(w http.ResponseWriter, r *http.Request) {
 // 	fmt.Println("we get here")
 // 	c, err := websocket.Accept(w, r, nil)
@@ -70,5 +74,6 @@ func getChatHistory(w http.ResponseWriter, r *http.Request) {
 func CreateControllers() {
 	Router.HandleFunc("/", goConvoHomePage)
 	Router.HandleFunc("/chat/{id}", getChatHistory)
+	Router.HandleFunc("/create-session",createNewSession)
 	// Router.HandleFunc("/chat/{id}/ws", chatWebSocket) // this will be on the route with "ws" prefix
 }
