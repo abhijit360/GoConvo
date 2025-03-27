@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoConvo</title>
+  </head>
+  <script>
+    async function createSession(){
+     try{
+       const response = await fetch("/create-session", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            }})
+            
+        if(!response.ok){
+          const errorLogger = document.getElementById("error-message")
+          errorLogger.textContent = "Unable to create a session at the moment"
+          return
+        }
+
+        const data = await response.json();
+        const uuid = data["new-session-id"]
+
+        console.log("Session UUID:", uuid);
+
+        const newSessionLink = document.getElementById("new-session-link")
+        newSessionLink.href = `/chat/${uuid}`
+        newSessionLink.textContent = `Click here to access your unique chat room: ${uuid}`
+        newSessionLink.style.display = "inline"
+      }
+    }
+  </script>
+  <body>
+    <h1>GoConvo</h1>
+    <p>Collaborate with multiple people through this online AI assistant.</p>
+    <p>
+      Share your link with other people to cross-collaborate within the same
+      prompt window
+    </p>
+    <button onclick="createSession">Start a session</button>
+    <a id="new-session-link" href="#" style="display: none;"></a>
+
+    <p id="error-message"></p>
+  </body>
+</html>
