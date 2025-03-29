@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 	"fmt"
+	"github.com/coder/websocket"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -19,7 +20,7 @@ type ChatMetaData struct {
 }
 
 type Session struct{
-	subscribers string[] // array of subscriber websocket connections that we write to
+	subscribers []*websocket.Conn // array of subscriber websocket connections that we write to
 	chatMetaData ChatMetaData
 	db *sql.DB
 }
@@ -108,4 +109,13 @@ func (s *Session)UpdateSessionExpiryDate(current_time string) (string,error){
 	updatedRow.Scan(&chatMetaData)
 	s.chatMetaData = chatMetaData
 	return chatMetaData.expiry_date, nil
+}
+
+func GetSession(chat_id string) (*Session, boolean){
+	foundSession := Session{}
+	if session, ok := sessionManager.tracker[chat_id]; !ok {
+		return &foundSession, ok
+	}else {
+		return session, ok
+	}
 }
