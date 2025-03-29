@@ -5,4 +5,3 @@ type chatLog struct {
 	message string	
 }
 
-func

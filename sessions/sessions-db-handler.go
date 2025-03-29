@@ -14,7 +14,7 @@ const createNewSession = "INSERT INTO chats (expiry_date) VALUES (?)"
 const updateExistingSession = "UPDATE chats SET expiry_date = ? where chat_id == ?"
 
 type ChatMetaData struct {
-	chat_id string,
+	chat_id string
 	expiry_date string
 }
 
@@ -51,25 +51,32 @@ func (s *Session)GetSession() (string,error){
 	return foundRow, nil
 }
 
-func (s *Session)CreateSession(current_time string) (string,error){
-	if s.db == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
+func CreateSession(current_time string) (*Session,error){
 	current_time, err := time.Parse(current_time)
 	if err != nil {
 		return "",fmt.Errorf("Received time could not be parsed")
 	}
 	expiry_time := current_time + (24 * time.Hour) // set expirty to be after 24 hours
-
-	createdRow, err := s.db.Query(createNewSession,expiry_time)
+	newSession = Session{
+		expiry_date: expiry_time
+	}
+	if db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	createdRow, err := db.Query(createNewSession,expiry_time)
 	if err != nil {
 		return nil, err
 	}
 	
 	var chatMetaData ChatMetaData
-	createdRow.Scan(&chatMetaData)
-	s.chatMetaData = chatMetaData
-	return chatMetaData.chat_id, nil
+	err := createdRow.Scan(&chatMetaData)
+	if err != nil {
+		return nil, fmtErrorf("error parsing row data into struct")
+	}
+	newSession.chatMetaData = chatMetaData
+
+	m.tracker[chat_id] = *newSession
+	return *newSession, nil
 }
 
 func (s *Session)UpdateSessionExpiryDate(current_time string) (string,error){
@@ -93,9 +100,4 @@ func (s *Session)UpdateSessionExpiryDate(current_time string) (string,error){
 	updatedRow.Scan(&chatMetaData)
 	s.chatMetaData = chatMetaData
 	return chatMetaData.expiry_date, nil
-}
-
-
-func (m *Mainnet) updateMainSessionManager(chat_id string, s *Session){
-	m.tracker[chat_id] = s
 }
