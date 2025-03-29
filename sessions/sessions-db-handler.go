@@ -28,8 +28,16 @@ type Mainnet struct{
 	tracker map[uuid]*Session
 }
 
-db, err := sql.Open("sqlite3",database)
-sessionManager = make(Mainnet)
+var db *sql.DB
+var sessionManager Mainnet
+
+func init() {
+	var err error
+	db, err = sql.Open("sqlite3", database)
+	if err != nil {
+		log.Fatalf("failed to connect to database %v", err)
+	}
+}
 
 func (s *Session)GetSession() (string,error){
 	if s.db == nil {
