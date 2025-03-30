@@ -1,10 +1,12 @@
 package sessions
 
 import (
-	"log"
+	"context"
 	"database/sql"
-	"time"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/coder/websocket"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -115,11 +117,35 @@ func (s *Session)UpdateSessionExpiryDate(current_time string) (string,error){
 	return chatMetaData.expiry_date, nil
 }
 
+func (s *Session)RemoveSession(c *websocket.Conn){
+	delete(s.subscribers,c)
+}
+
+func (s *Session)AddSession(c *websocket.Conn){
+	s.subscribers[c] = true
+}
+
+
 func GetSession(chat_id string) (*Session, bool){
 	foundSession := Session{}
 	if session, ok := sessionManager.tracker[chat_id]; !ok {
 		return &foundSession, ok
 	}else {
 		return session, ok
+	}
+}
+
+func (s *Session) handleBroadcast(){
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	for message := range s.broadcast {
+		for conn, active := range s.subscribers{
+			if !active{
+				continue
+			}
+			if err := conn.Write(ctx,websocket.MessageText,message); err != nil {
+				s.RemoveSession(conn)
+			}
+		}
 	}
 }
