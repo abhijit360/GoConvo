@@ -13,7 +13,7 @@ import (
 
 const database = "WebsocketManager.db"
 const findExpiryBasedOnChatId = "Select expiry_date from chats where chat_id == ?"
-const createNewSession = "INSERT INTO chats (expiry_date) VALUES (?)"
+const createNewSession = "INSERT INTO chats (chat_id, expiry_date) VALUES (hex(randomblob(16)), ?)"
 const updateExistingSession = "UPDATE chats SET expiry_date = ? where chat_id == ?"
 
 type ChatMetaData struct {
@@ -42,6 +42,13 @@ func init() {
 	db, err = sql.Open("sqlite3", database)
 	if err != nil {
 		log.Fatalf("failed to connect to database %v", err)
+	}
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS chats (
+		chat_id TEXT PRIMARY KEY,
+		expiry_date TEXT
+	);`)
+	if err != nil {
+		log.Fatalln("failed to create table", err)
 	}
 }
 
@@ -83,16 +90,11 @@ func CreateSession(current_time string) (*Session, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	createdRow, err := db.Query(createNewSession, expiry_time)
+	var chatMetaData ChatMetaData 
+	err = db.QueryRow(createNewSession, expiry_time).Scan(&chatMetaData.Chat_id, &chatMetaData.Expiry_date)
 	if err != nil {
 		fmt.Printf("error executing the query")
 		return nil, err
-	}
-
-	var chatMetaData ChatMetaData
-	err = createdRow.Scan(&chatMetaData.Chat_id, &chatMetaData.Expiry_date)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing row data into struct")
 	}
 	newSession.ChatMetaData = chatMetaData
 
