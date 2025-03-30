@@ -10,10 +10,14 @@ import (
 
 	"github.com/abhijit360/GoConvo/sessions"
 	// "time"
-	"github.com/coder/websocket"
+	"github.com/gorilla/websocket"
 )
 
 var Router = http.NewServeMux()
+var upgrader = websocket.Upgrader{
+	ReadBufferSize: 1024,
+	WriteBufferSize: 1024,
+}
 
 func goConvoHomePage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" || r.URL.Path != "/" {
@@ -39,7 +43,7 @@ func createNewSession(w http.ResponseWriter, r * http.Request){
 }
 
 func chatWebSocket(w http.ResponseWriter, r *http.Request) {
-	// i need to check if thechatroom that is being accessed exists already in the sessionMaanager
+	// create session or get existing session
 	chat_id := r.PathValue("id")
 	s, ok := sessions.GetSession(chat_id)
 	if !ok{
@@ -49,38 +53,14 @@ func chatWebSocket(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to create session", http.StatusInternalServerError)
 		}
 	}
-	// fmt.Println("we get here")
-	// c, err := websocket.Accept(w, r, nil)
-	// if err != nil {
-	// 	log.Println("Error Accepting websocket connections", err)
-	// }
-	// defer c.CloseNow()
-
-	// ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	// defer cancel()
-
-	// for {
-	// 	message := []byte("testing")
-	// 	var currentIndex, length = 0, len(message)
-	// 	written, err = c.Write(ctx,,message[currentIndex:length])
-	// 	if err != nil {
-	// 		log.Println("Error writing to websocket", err)
-	// 	}
-	// 	if currentIndex != length{
-	// 		currentIndex += written
-	// 		c.Write(message[currentIndex:length])
-	// 	}
-	// 	break
-	// }
-	// var v interface{}
-	// err = wsjson.Read(ctx, c, &v)
-	// if err != nil {
-	// 	log.Println("Error Reading from websocket", err)
-	// }
-
-	// log.Printf("received: %v", v)
-
-	// c.Close(websocket.StatusNormalClosure, "")
+	
+	// intercept websocket connection
+	conn, err := upgrader.Upgrade(w,r,nil)
+	if err != nil {
+		fmt.Errorf("Having trouble upgrading connection",err)
+		return
+	}
+	s.AddSession(conn)
 }
 
 func CreateControllers() {

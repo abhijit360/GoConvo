@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/coder/websocket"
+	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 )
 
