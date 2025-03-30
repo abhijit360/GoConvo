@@ -20,13 +20,14 @@ type ChatMetaData struct {
 }
 
 type Session struct{
-	subscribers []*websocket.Conn // array of subscriber websocket connections that we write to
+	subscribers map[*websocket.Conn]bool // array of subscriber websocket connections that we write to
+	broadcast chan []byte
 	chatMetaData ChatMetaData
 	db *sql.DB
 }
 
 type Mainnet struct{
-	tracker map[uuid]*Session
+	tracker map[string]*Session
 }
 
 var db *sql.DB
@@ -42,67 +43,70 @@ func init() {
 
 func (s *Session)GetSession() (string,error){
 	if s.db == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return "", fmt.Errorf("database not initialized")
 	}
 
 	sql_query := findExpiryBasedOnChatId
 
-    row := s.db.QueryRow(sql_query, s.chatId)
+    row := s.db.QueryRow(sql_query, s.chatMetaData.chat_id)
 	var foundRow ChatMetaData
-	err := row.Scan(&foundRow)
+	err := row.Scan(&foundRow.chat_id,&foundRow.expiry_date)
 	if err != nil {
 		if err == sql.ErrNoRows{
-			return "", fmtErrorf("chatId not found")
+			return "", fmt.Errorf("chatId not found")
 		}
-		return nil, err
+		return "", err
 	}
 
-	return foundRow, nil
+	return foundRow.expiry_date, nil
 }
 
 func CreateSession(current_time string) (*Session,error){
-	current_time, err := time.Parse(current_time)
+	newSession := Session{
+		subscribers: make(map[*websocket.Conn]bool,0),
+	}
+	parsedTime, err := time.Parse(time.RFC3339, current_time)
 	if err != nil {
-		return "",fmt.Errorf("Received time could not be parsed")
+		return &newSession, fmt.Errorf("Received time could not be parsed")
 	}
-	expiry_time := current_time + (24 * time.Hour) // set expirty to be after 24 hours
-	newSession = Session{
-		expiry_date: expiry_time
-	}
+	expiry_time := parsedTime.Add(24 * time.Hour) // fixed time addition
+	
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
+
 	createdRow, err := db.Query(createNewSession,expiry_time)
 	if err != nil {
 		return nil, err
 	}
 	
 	var chatMetaData ChatMetaData
-	err := createdRow.Scan(&chatMetaData)
+	err = createdRow.Scan(&chatMetaData.chat_id, &chatMetaData.expiry_date)
 	if err != nil {
-		return nil, fmtErrorf("error parsing row data into struct")
+		return nil, fmt.Errorf("error parsing row data into struct")
 	}
 	newSession.chatMetaData = chatMetaData
+	newSession.db = db
+	newSession.broadcast = make(chan []byte)
 
-	m.tracker[chat_id] = *newSession
-	return *newSession, nil
+	sessionManager.tracker[chatMetaData.chat_id] = &newSession
+	return &newSession, nil
 }
 
 func (s *Session)UpdateSessionExpiryDate(current_time string) (string,error){
 	if s.db == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return "", fmt.Errorf("database not initialized")
 	}
-
-	current_time, err := time.Parse(current_time)
+	parsedTime, err := time.Parse(time.RFC3339, current_time)
 	if err != nil {
-		return "",fmt.Errorf("Received time could not be parsed")
+		return "", fmt.Errorf("Received time could not be parsed")
 	}
-	expiry_time := current_time + (24 * time.Hour) // set expirty to be after 24 hours
+	expiry_time := parsedTime.Add(24 * time.Hour) // fixed time addition
 
 	updatedRow, err := s.db.Query(updateExistingSession,s.chatMetaData.chat_id,expiry_time)
 	
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	
 	var chatMetaData ChatMetaData
@@ -111,7 +115,7 @@ func (s *Session)UpdateSessionExpiryDate(current_time string) (string,error){
 	return chatMetaData.expiry_date, nil
 }
 
-func GetSession(chat_id string) (*Session, boolean){
+func GetSession(chat_id string) (*Session, bool){
 	foundSession := Session{}
 	if session, ok := sessionManager.tracker[chat_id]; !ok {
 		return &foundSession, ok
