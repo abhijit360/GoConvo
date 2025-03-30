@@ -12,15 +12,19 @@
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-            }})
-            
+            },
+          body: JSON.stringify({
+            currentTime: new Date().toISOString()
+          })
+        });
+
         if(!response.ok){
           const errorLogger = document.getElementById("error-message")
           errorLogger.textContent = "Unable to create a session at the moment"
           return
         }
 
-        const data = await response.json();
+        const data = await response.text();
         const uuid = data["new-session-id"]
 
         console.log("Session UUID:", uuid);
@@ -29,6 +33,9 @@
         newSessionLink.href = `/chat/${uuid}`
         newSessionLink.textContent = `Click here to access your unique chat room: ${uuid}`
         newSessionLink.style.display = "inline"
+      } catch(error){
+        console.log("Error:",error);
+        document.getElementById("error-message").textContent = "An error occurred while completing your request!"
       }
     }
   </script>
@@ -39,8 +46,8 @@
       Share your link with other people to cross-collaborate within the same
       prompt window
     </p>
-    <button onclick="createSession">Start a session</button>
-    <a id="new-session-link" href="#" style="display: none;"></a>
+    <button onclick="createSession()">Start a session</button>
+    <a id="new-session-link" href="#" style="display: none"></a>
 
     <p id="error-message"></p>
   </body>

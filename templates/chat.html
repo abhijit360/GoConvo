@@ -1,25 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script
-      src="../htmx.min.js"
-    ></script>
-    <title>GoConvo</title>
-  </head>
-  <body>
-    <p>
-      You can invite people to work with you by sharing this link! This window
-      will dissolve all of its memory 24 hours from when it was last accessed
-    </p>
-    <label>Dissolving in</label>
-    <p hx-get="/dissolving-in/${}" hx-trigger="every 5min" hx-swap="outerHTML"></p>
-    <ul id="prompt-history"></ul>
-    <form aria-disabled="true">
-      <label for="prompt-box">Enter a prompt:</label>
-      <input id="prompt-box" type="text" />
-      <button disabled>submit</button>
-    </form>
-  </body>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <input type="text" id="message">
+    <button onclick="sendMessage()">Send</button>
+    <div id="messages"></div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8080/ws/test-room');
+        
+        ws.onmessage = function(event) {
+            const messages = document.getElementById('messages');
+            messages.innerHTML += '<br>' + event.data;
+        };
+
+        function sendMessage() {
+            const input = document.getElementById('message');
+            ws.send(input.value);
+            input.value = '';
+        }
+    </script>
+</body>
 </html>

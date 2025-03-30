@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,15 +22,12 @@ type ChatMetaData struct {
 }
 
 type Session struct {
+	sync.RWMutex
 	Subscribers  map[*websocket.Conn]bool // array of subscriber websocket connections that we write to
 	Broadcast    chan []byte
 	ChatMetaData ChatMetaData
 	done         chan struct{}
 	DB           *sql.DB
-}
-
-func (s *Session) HandleBroadcast() {
-	panic("unimplemented")
 }
 
 type Mainnet struct {
@@ -69,7 +67,10 @@ func (s *Session) GetSession() (string, error) {
 
 func CreateSession(current_time string) (*Session, error) {
 	newSession := Session{
-		Subscribers: make(map[*websocket.Conn]bool, 0),
+		Subscribers: make(map[*websocket.Conn]bool),
+		Broadcast:   make(chan []byte),
+		done:        make(chan struct{}),
+		DB:          db,
 	}
 	parsedTime, err := time.Parse(time.RFC3339, current_time)
 	if err != nil {
@@ -77,12 +78,14 @@ func CreateSession(current_time string) (*Session, error) {
 	}
 	expiry_time := parsedTime.Add(24 * time.Hour) // fixed time addition
 
+	// fmt.Printf("parsedTime: %v | ExpiryTime: %v | DB: %v",parsedTime, expiry_time, newSession.DB)
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
 	createdRow, err := db.Query(createNewSession, expiry_time)
 	if err != nil {
+		fmt.Printf("error executing the query")
 		return nil, err
 	}
 
@@ -92,9 +95,6 @@ func CreateSession(current_time string) (*Session, error) {
 		return nil, fmt.Errorf("error parsing row data into struct")
 	}
 	newSession.ChatMetaData = chatMetaData
-	newSession.DB = db
-	newSession.Broadcast = make(chan []byte)
-	newSession.done = make(chan struct{})
 
 	sessionManager.tracker[chatMetaData.Chat_id] = &newSession
 	return &newSession, nil
@@ -123,17 +123,20 @@ func (s *Session) UpdateSessionExpiryDate(current_time string) (string, error) {
 }
 
 func (s *Session) RemoveSession(c *websocket.Conn) {
+	s.Lock()
 	delete(s.Subscribers, c)
-	if len(s.Subscribers) == 0 {
-		// reached a case where we have no more subscribers listening to this socket
-		close(s.done)
-		close(s.Broadcast)
-		delete(sessionManager.tracker, s.ChatMetaData.Chat_id)
+	isEmpty := len(s.Subscribers) == 0
+	s.Unlock()
+
+	if isEmpty {
+		s.cleanup()
 	}
 }
 
 func (s *Session) AddSession(c *websocket.Conn) {
+	s.Lock()
 	s.Subscribers[c] = true
+	s.Unlock()
 }
 
 func GetSession(chat_id string) (*Session, bool) {
@@ -145,10 +148,11 @@ func GetSession(chat_id string) (*Session, bool) {
 	}
 }
 
-func (s *Session) handleBroadcast() {
+func (s *Session) HandleBroadcast() {
 	for {
 		select {
 		case message := <-s.Broadcast:
+			s.RLock()
 			for conn, active := range s.Subscribers {
 				if !active {
 					continue
@@ -157,6 +161,7 @@ func (s *Session) handleBroadcast() {
 					s.RemoveSession(conn)
 				}
 			}
+			s.RUnlock()
 		case <-s.done:
 			return
 		}
@@ -165,4 +170,24 @@ func (s *Session) handleBroadcast() {
 
 func (s *Session) GetChatMetaData() ChatMetaData {
 	return s.ChatMetaData
+}
+
+func (s *Session) cleanup() {
+	// Signal goroutines to stop
+	close(s.done)
+
+	// Close broadcast channel
+	close(s.Broadcast)
+
+	// Clean up all connections
+	s.Lock()
+	for conn := range s.Subscribers {
+		conn.Close()
+	}
+	s.Subscribers = nil
+	s.Unlock()
+
+	// Remove from session manager
+	delete(sessionManager.tracker, s.ChatMetaData.Chat_id)
+
 }

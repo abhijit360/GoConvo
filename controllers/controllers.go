@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -18,7 +19,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type createSessionRequest struct {
-	currentTime string `json:currentTime`
+	CurrentTime string `json:"currentTime"`
 }
 
 func goConvoHomePage(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +30,7 @@ func goConvoHomePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("we are getting this far")
 	dir, _ := os.Getwd()
 	fmt.Println("current dir", dir)
-	http.ServeFile(w, r, "./templates/index.html")
+	http.ServeFile(w, r, "./templates/landing.html")
 }
 
 func getChatHistory(w http.ResponseWriter, r *http.Request) {
@@ -44,18 +45,20 @@ func createNewSession(w http.ResponseWriter, r * http.Request){
 	if r.Method != "POST"{
 		http.Error(w,"Wrong HTTP method to create session",http.StatusBadRequest)
 	}
-	var response createSessionRequest
-	err := json.NewDecoder(r.Body).Decode(&response)
-	if err != nil {
-		fmt.Errorf("unable to parse json %v",err)
-		return
-	}
-	s, err := sessions.CreateSession(response.currentTime)
 
-	go s.HandleBroadcast() // create the broadcast
+    var response createSessionRequest
+    if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+        log.Printf("Error decoding JSON: %v", err)
+        http.Error(w, "Failed to parse JSON", http.StatusBadRequest)
+        return
+    }
+	fmt.Printf("json response %v", response)
+	s, err := sessions.CreateSession(response.CurrentTime)
+
+	// go s.HandleBroadcast() // create the broadcast
 
 	if err != nil {
-		fmt.Errorf("unable to create session %v",err)
+		fmt.Printf("unable to create session %v",err)
 	}
 	chatMetaData := s.GetChatMetaData()
 	w.Write([]byte(chatMetaData.Chat_id))
@@ -106,7 +109,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 func CreateControllers() {
 	Router.HandleFunc("/", goConvoHomePage)
-	Router.HandleFunc("/chat/{id}", getChatHistory)
+	Router.HandleFunc("/chat/{id}", handleWebSocket)
 	Router.HandleFunc("/create-session",createNewSession)
-	// Router.HandleFunc("/chat/{id}/ws", chatWebSocket) // this will be on the route with "ws" prefix
 }
