@@ -24,8 +24,8 @@
           return
         }
 
-        const data = await response.text();
-        const uuid = data["new-session-id"]
+        const data = await response.json();
+        const uuid = data["chat_id"]
 
         console.log("Session UUID:", uuid);
 

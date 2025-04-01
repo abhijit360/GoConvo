@@ -52,16 +52,21 @@ func createNewSession(w http.ResponseWriter, r * http.Request){
         http.Error(w, "Failed to parse JSON", http.StatusBadRequest)
         return
     }
-	fmt.Printf("json response %v", response)
 	s, err := sessions.CreateSession(response.CurrentTime)
 
-	// go s.HandleBroadcast() // create the broadcast
+	go s.HandleBroadcast() // create the broadcast
 
 	if err != nil {
 		fmt.Printf("unable to create session %v",err)
+		return 
 	}
-	chatMetaData := s.GetChatMetaData()
-	w.Write([]byte(chatMetaData.Chat_id))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		ChatId string `json:"chat_id"`
+	}{
+		ChatId: s.ChatMetaData.Chat_id,
+	})
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +84,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// intercept websocket connection
 	conn, err := upgrader.Upgrade(w,r,nil)
 	if err != nil {
-		fmt.Errorf("Having trouble upgrading connection",err)
+		fmt.Errorf("having trouble upgrading connection",err)
 		return
 	}
 	s.AddSession(conn)

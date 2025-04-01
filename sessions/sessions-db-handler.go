@@ -13,7 +13,7 @@ import (
 
 const database = "WebsocketManager.db"
 const findExpiryBasedOnChatId = "Select expiry_date from chats where chat_id == ?"
-const createNewSession = "INSERT INTO chats (chat_id, expiry_date) VALUES (hex(randomblob(16)), ?)"
+const createNewSession = "INSERT INTO chats (chat_id, expiry_date) VALUES (hex(randomblob(16)), ?) RETURNING chat_id, expiry_date;"
 const updateExistingSession = "UPDATE chats SET expiry_date = ? where chat_id == ?"
 
 type ChatMetaData struct {
@@ -40,6 +40,9 @@ var sessionManager Mainnet
 func init() {
 	var err error
 	db, err = sql.Open("sqlite3", database)
+	sessionManager = Mainnet{
+		tracker: make(map[string]*Session),
+	}
 	if err != nil {
 		log.Fatalf("failed to connect to database %v", err)
 	}
@@ -85,16 +88,20 @@ func CreateSession(current_time string) (*Session, error) {
 	}
 	expiry_time := parsedTime.Add(24 * time.Hour) // fixed time addition
 
-	// fmt.Printf("parsedTime: %v | ExpiryTime: %v | DB: %v",parsedTime, expiry_time, newSession.DB)
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
 	var chatMetaData ChatMetaData 
-	err = db.QueryRow(createNewSession, expiry_time).Scan(&chatMetaData.Chat_id, &chatMetaData.Expiry_date)
+	err = db.QueryRow(createNewSession, expiry_time.String()).Scan(&chatMetaData.Chat_id, &chatMetaData.Expiry_date)
+
 	if err != nil {
-		fmt.Printf("error executing the query")
-		return nil, err
+		if err == sql.ErrNoRows {
+			fmt.Println("Query returned no rows.")
+			return nil, fmt.Errorf("no rows returned from query")
+		}
+		fmt.Printf("Error scanning row: %v\n", err)
+		return nil, fmt.Errorf("error executing query: %w", err)
 	}
 	newSession.ChatMetaData = chatMetaData
 
@@ -108,7 +115,7 @@ func (s *Session) UpdateSessionExpiryDate(current_time string) (string, error) {
 	}
 	parsedTime, err := time.Parse(time.RFC3339, current_time)
 	if err != nil {
-		return "", fmt.Errorf("Received time could not be parsed")
+		return "", fmt.Errorf("received time could not be parsed")
 	}
 	expiry_time := parsedTime.Add(24 * time.Hour) // fixed time addition
 
@@ -117,9 +124,9 @@ func (s *Session) UpdateSessionExpiryDate(current_time string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
+	
 	var chatMetaData ChatMetaData
-	updatedRow.Scan(&chatMetaData)
+	updatedRow.Scan(&chatMetaData.Chat_id,&chatMetaData.Expiry_date)
 	s.ChatMetaData = chatMetaData
 	return chatMetaData.Expiry_date, nil
 }
