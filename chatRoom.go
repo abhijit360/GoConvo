@@ -1,6 +1,10 @@
 package main
 
-import "github.com/gorilla/websocket"
+import (
+	"net/http"
+	"log"
+	"github.com/gorilla/websocket"
+)
 
 const (
 	socketBufferSize  = 1024
