@@ -1,26 +1,56 @@
-<!DOCTYPE html>
 <html>
-<head>
-    <title>WebSocket Test</title>
-</head>
-<body>
-    <input type="text" id="message">
-    <button onclick="sendMessage()">Send</button>
-    <div id="messages"></div>
-
+  <head>
+    <title>Chat</title>
+    <style>
+      input {
+        display: block;
+      }
+      ul {
+        list-style: none;
+      }
+    </style>
     <script>
-        const ws = new WebSocket('ws://localhost:8080/ws/test-room');
-        
-        ws.onmessage = function(event) {
-            const messages = document.getElementById('messages');
-            messages.innerHTML += '<br>' + event.data;
-        };
+      let socket;
 
-        function sendMessage() {
-            const input = document.getElementById('message');
-            ws.send(input.value);
-            input.value = '';
-        }
+      document.addEventListener("DOMContentLoaded", () => {
+        const messageBox = document.getElementById("messages");
+        const chatBox = document.getElementById("chatbox");
+        const input = chatBox.querySelector("textarea");
+
+        socket = new WebSocket("ws://localhost:8080/chat");
+
+        chatBox.addEventListener("submit", (e) => {
+          e.preventDefault();
+          if (input.value && socket.readyState === WebSocket.OPEN) {
+            socket.send(input.value);
+            input.value = "";
+          }
+        });
+
+        socket.addEventListener("message", (event) => {
+          const newMessage = document.createElement("li");
+          newMessage.innerText = event.data;
+          messageBox.appendChild(newMessage);
+        });
+
+        socket.addEventListener("close", () => {
+          const notice = document.createElement("li");
+          notice.innerText = "Connection closed.";
+          notice.style.color = "red";
+          messageBox.appendChild(notice);
+        });
+
+        socket.addEventListener("error", (err) => {
+          console.error("WebSocket error:", err);
+        });
+      });
     </script>
-</body>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <form id="chatbox">
+      <textarea></textarea>
+      <input type="submit" value="send" />
+    </form>
+  </body>
 </html>
