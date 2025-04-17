@@ -28,7 +28,7 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	chat := newRoom()
 	chat.tracer = trace.New(os.Stdout)
-	http.Handle("/", &templateHandler{filename: "chat.html"})
+	http.Handle("/", RequireAuth(&templateHandler{filename: "chat.html"}))
 	http.Handle("/chat", chat)
 	go chat.run()
 
