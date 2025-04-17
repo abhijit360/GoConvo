@@ -12,6 +12,7 @@ import (
 	"github.com/abhijit360/GoConvo/trace"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/gomniauth"
+	"github.com/stretchr/objx"
 
 	// "github.com/stretchr/gomniauth/providers/facebook"
 	// "github.com/stretchr/gomniauth/providers/github"
@@ -28,7 +29,14 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.once.Do(func() {
 		t.templ = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
 	})
-	t.templ.Execute(w, nil)
+	data := map[string]interface{}{
+		"Host": r.Host,	
+	}
+
+	if authCookie, err := r.Cookie("auth"); err == nil {
+		data["UserData"] = objx.MustFromBase64(authCookie.Value)
+	}
+	t.templ.Execute(w, data)
 
 }
 
