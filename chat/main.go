@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/abhijit360/GoConvo/trace"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"text/template"
+	"github.com/abhijit360/GoConvo/trace"
 )
 
 type templateHandler struct {

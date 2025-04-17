@@ -62,7 +62,7 @@ func (chatRoom *chatRoom) run() {
 		case msg := <-chatRoom.triage:
 			for client := range chatRoom.clients {
 				client.send <- msg
-				chatRoom.tracer.Trace(" -- set to client")
+				chatRoom.tracer.Trace("-- sent to client")
 			}
 		}
 	}
