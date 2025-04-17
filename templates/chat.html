@@ -17,7 +17,7 @@
         const chatBox = document.getElementById("chatbox");
         const input = chatBox.querySelector("textarea");
 
-        socket = new WebSocket("ws://localhost:8080/chat");
+        socket = new WebSocket("ws://localhost:8080/chatRoom");
 
         chatBox.addEventListener("submit", (e) => {
           e.preventDefault();
