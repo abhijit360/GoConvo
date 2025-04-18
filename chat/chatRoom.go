@@ -6,6 +6,7 @@ import (
 
 	"github.com/abhijit360/GoConvo/trace"
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/objx"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 type chatRoom struct {
 	// this channel holds the incoming message
 	// that must be forwarded to other clients
-	triage chan []byte
+	triage chan *message
 
 	// a channel for clients to join the chatRoom
 	join chan *client
@@ -36,10 +37,16 @@ func (cr *chatRoom) ServeHTTP(w http.ResponseWriter, req *http.Request){
 	if err != nil {
 		log.Fatal("Failed to upgrade to websocket connection", err)
 	}
+	authCookie, err := req.Cookie("auth")
+	if err != nil {
+		log.Fatal("Failed to get auth cookie when upgrading connection:", err)
+		return
+	}
 	client := &client{
 		socket: socket,
-		send: make(chan []byte, messageBufferSize),
+		send: make(chan *message, messageBufferSize),
 		chatRoom: cr,
+		userData: objx.MustFromBase64(authCookie.Value),
 	}
 	cr.join <- client
 
@@ -62,7 +69,7 @@ func (chatRoom *chatRoom) run() {
 		case msg := <-chatRoom.triage:
 			for client := range chatRoom.clients {
 				client.send <- msg
-				chatRoom.tracer.Trace("-- sent to client")
+				chatRoom.tracer.Trace("message recieved: ",msg.Message)
 			}
 		}
 	}
@@ -70,7 +77,7 @@ func (chatRoom *chatRoom) run() {
 
 func newRoom() *chatRoom {
 	return &chatRoom{
-		triage: make(chan []byte),
+		triage: make(chan *message),
 		join: make(chan * client),
 		leave: make(chan *client),
 		clients: make(map[*client]bool),

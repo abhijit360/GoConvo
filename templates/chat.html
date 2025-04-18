@@ -22,14 +22,19 @@
         chatBox.addEventListener("submit", (e) => {
           e.preventDefault();
           if (input.value && socket.readyState === WebSocket.OPEN) {
-            socket.send(input.value);
+            const message = {
+              Message: input.value,
+            };
+            socket.send(JSON.stringify(message));
             input.value = "";
           }
         });
 
         socket.addEventListener("message", (event) => {
           const newMessage = document.createElement("li");
-          newMessage.innerText = event.data;
+          const msgData = JSON.parse(event.data);
+          console.log("receiving this", JSON.stringify(msgData))
+          newMessage.innerText = `${msgData.Name}- ${msgData.When}: ${msgData.Message}`;
           messageBox.appendChild(newMessage);
         });
 
@@ -49,7 +54,7 @@
   <body>
     <ul id="messages"></ul>
     <form id="chatbox">
-      {{.UserData.name}}:<br/>
+      {{.UserData.name}}:<br />
       <textarea></textarea>
       <input type="submit" value="send" />
     </form>
