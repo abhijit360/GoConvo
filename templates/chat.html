@@ -1,7 +1,21 @@
 <html>
   <head>
     <title>Chat</title>
+    <link
+      rel="stylesheet"
+      href="//netdna.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+    />
+
     <style>
+      ul#messages {
+        list-style: none;
+      }
+      ul#messages li {
+        margin-bottom: 2px;
+      }
+      ul#messages li img {
+        margin-right: 10px;
+      }
       input {
         display: block;
       }
@@ -31,11 +45,24 @@
         });
 
         socket.addEventListener("message", (event) => {
-          const newMessage = document.createElement("li");
+          const messageContainer = document.createElement("li");
+          const profilePicture = document.createElement("img");
+          profilePicture.style.width = 50;
+          const message = document.createElement("p");
+
           const msgData = JSON.parse(event.data);
-          console.log("receiving this", JSON.stringify(msgData))
-          newMessage.innerText = `${msgData.Name}- ${msgData.When}: ${msgData.Message}`;
-          messageBox.appendChild(newMessage);
+          console.log("receiving this", JSON.stringify(msgData));
+          profilePicture.src = msgData.AvatarUrl;
+          message.innerText = `${msgData.Name}- ${msgData.When}: ${msgData.Message}`;
+
+          if (msgData.AvatarUrl != "") {
+            messageContainer.appendChild(profilePicture);
+          }
+          messageContainer.appendChild(message);
+          messageContainer.style.display = "flex";
+          messageContainer.style.flexDirection = "row";
+          messageContainer.style.gap = "1rem";
+          messageBox.appendChild(messageContainer);
         });
 
         socket.addEventListener("close", () => {
@@ -52,11 +79,20 @@
     </script>
   </head>
   <body>
-    <ul id="messages"></ul>
-    <form id="chatbox">
-      {{.UserData.name}}:<br />
-      <textarea></textarea>
-      <input type="submit" value="send" />
-    </form>
+    <div class="container">
+      <div class="panel panel-default">
+        <div class="panel-body">
+          <ul id="messages"></ul>
+        </div>
+      </div>
+      <form id="chatbox" role="form">
+        <div class="form-group">
+          <label for="message">Send a message as {{.UserData.name}} </label> or
+          <a href="/logout">Sign out</a>
+          <textarea id="message" class="form-control"></textarea>
+        </div>
+        <input type="submit" value="Send" class="btn btn-default" />
+      </form>
+    </div>
   </body>
 </html>

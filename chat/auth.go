@@ -14,8 +14,8 @@ type authHandler struct {
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	_, err := r.Cookie("auth")
-	if err == http.ErrNoCookie {
+	cookie, err := r.Cookie("auth")
+	if err == http.ErrNoCookie || cookie.Value == "" {
 		// Not authenticated
 		w.Header().Set("Location", "/login")
 		w.WriteHeader(http.StatusTemporaryRedirect)
@@ -71,15 +71,15 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		user, err := provider.GetUser(creds)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error when trying to get user from %s: %s",provider, err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error when trying to get user from %s: %s", provider, err), http.StatusInternalServerError)
 			return
 		}
-		authCookieValue := objx.New(map[string]interface{}{"name": user.Name()}).MustBase64()
+		authCookieValue := objx.New(map[string]interface{}{"name": user.Name(), "avatar_url": user.AvatarURL()}).MustBase64()
 		http.SetCookie(w, &http.Cookie{
-			Name: "auth",
+			Name:  "auth",
 			Value: authCookieValue,
-			Path: "/"})
-		
+			Path:  "/"})
+
 		w.Header().Set("Location", "/chat")
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	default:
