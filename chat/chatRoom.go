@@ -28,6 +28,8 @@ type chatRoom struct {
 	clients map[*client]bool
 
 	tracer trace.Tracer
+
+	avatar Avatar
 }
 
 var upgrader = &websocket.Upgrader{ReadBufferSize:socketBufferSize, WriteBufferSize: socketBufferSize}
@@ -75,11 +77,12 @@ func (chatRoom *chatRoom) run() {
 	}
 }
 
-func newRoom() *chatRoom {
+func newRoom(avatar Avatar) *chatRoom {
 	return &chatRoom{
 		triage: make(chan *message),
 		join: make(chan * client),
 		leave: make(chan *client),
 		clients: make(map[*client]bool),
+		avatar: avatar,
 	}
 }
